@@ -1,0 +1,6 @@
+github.com/sbwhitecap/tqdm v0.0.0-20170314014342-7929e3102f57 h1:0F+ss24sMnPKMm+fJXJpwmrcpDk76yvtxCL9BEJ+vk4=
+github.com/sbwhitecap/tqdm v0.0.0-20170314014342-7929e3102f57/go.mod h1:Zar/p+P2WHOQZA0YXYjQY/YrdySIyeC1d6tph8HW0DE=
+github.com/yeka/zip v0.0.0-20231116150916-03d6312748a9 h1:K8gF0eekWPEX+57l30ixxzGhHH/qscI3JCnuhbN6V4M=
+github.com/yeka/zip v0.0.0-20231116150916-03d6312748a9/go.mod h1:9BnoKCcgJ/+SLhfAXj15352hTOuVmG5Gzo8xNRINfqI=
+golang.org/x/crypto v0.19.0 h1:ENy+Az/9Y1vSrlrvBSyna3PITt4tiZLf7sgCjZBX7Wo=
+golang.org/x/crypto v0.19.0/go.mod h1:Iy9bg/ha4yyC70EfRS8jz+B6ybOBKMaSxLj6P6oBDfU=
