@@ -390,7 +390,7 @@ func GoAuditExtract_Thread(file os.FileInfo, options Options, threadNum int, c c
 			generator = strings.Replace(generator, "-", "_", -1)
 
 			var old_name = payload
-			var new_name = filename
+			var new_name = "__" + filename
 			oldFile, exists := zipFileContents[old_name]
 			if !exists {
 				warningMessages = append(warningMessages, "Could not find file '"+old_name+"' to rename into '"+new_name+"'.")

@@ -11,201 +11,203 @@
 package main
 
 import (
-    "crypto/md5"
-    "fmt"
-    "io"
-    "io/ioutil"
-    "log"
-    "os"
-    "path/filepath"
-    "strconv"
-    "strings"
-    "sort"
+	"crypto/md5"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
+	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
 
-    "github.com/fireeye/goauditparser"
+	"github.com/Aevyz/goauditparser"
 )
 
 func main() {
 
-    //Parse input flags, read config file, determine what to do
-    options := goauditparser.Setup()
-    if options.ErrorDuringSetup {
-        return
-    }
+	//Parse input flags, read config file, determine what to do
+	options := goauditparser.Setup()
+	if options.ErrorDuringSetup {
+		return
+	}
 
-    if options.TimelineOnly {
-        //If the user provided -i instead of -o, copy it over
-        if options.OutputPath == "" && options.InputPath != "" {
-            options.OutputPath = options.InputPath
-        }
-        goauditparser.GoAuditTimeliner_Start(options)
-        return
-    }
+	if options.TimelineOnly {
+		//If the user provided -i instead of -o, copy it over
+		if options.OutputPath == "" && options.InputPath != "" {
+			options.OutputPath = options.InputPath
+		}
+		goauditparser.GoAuditTimeliner_Start(options)
+		return
+	}
 
-    //Check required arguments
-    if options.InputPath == "" {
-        fmt.Println(goauditparser.GetHelpExamples())
-        return
-    }
+	//Check required arguments
+	if options.InputPath == "" {
+		fmt.Println(goauditparser.GetHelpExamples())
+		return
+	}
 
-    if options.EventBufferSplitDir != "" {
-        goauditparser.GoAuditEventSplitter_Start(options)
-        return
-    }
+	if options.EventBufferSplitDir != "" {
+		goauditparser.GoAuditEventSplitter_Start(options)
+		return
+	}
 
-    if options.XMLSplitOutputDir != "" {
-        goauditparser.GoAuditXMLSplitter_Start(options)
-        return
-    }
+	if options.XMLSplitOutputDir != "" {
+		goauditparser.GoAuditXMLSplitter_Start(options)
+		return
+	}
 
-    if options.ExtractionOutputDir != "" {
-        //Read input directory
-        files, err_r := ioutil.ReadDir(options.InputPath)
-        if err_r != nil {
-            fmt.Println(options.Warnbox + "ERROR - Could not read input directory '" + options.InputPath + "'.")
-            log.Fatal(err_r)
-        }
-        if len(files) == 0 {
-            fmt.Println(options.Warnbox + "ERROR - Could not identify any files in input directory '" + options.InputPath + "'.")
-            return
-        }
+	if options.ExtractionOutputDir != "" {
+		//Read input directory
+		files, err_r := ioutil.ReadDir(options.InputPath)
+		if err_r != nil {
+			fmt.Println(options.Warnbox + "ERROR - Could not read input directory '" + options.InputPath + "'.")
+			log.Fatal(err_r)
+		}
+		if len(files) == 0 {
+			fmt.Println(options.Warnbox + "ERROR - Could not identify any files in input directory '" + options.InputPath + "'.")
+			return
+		}
 
-        //Iterate through each file
-        archives := []os.FileInfo{}
-        for i := 0; i < len(files); i++ {
-            filename := filepath.Base(files[i].Name())
+		//Iterate through each file
+		archives := []os.FileInfo{}
+		for i := 0; i < len(files); i++ {
+			filename := filepath.Base(files[i].Name())
 
-            if strings.ToLower(filepath.Ext(filename)) == ".zip" || strings.ToLower(filepath.Ext(filename)) == ".mans" {
-                archives = append(archives, files[i])
-                files = append(files[:i], files[i+1:]...)
-                i--
-                continue
-            } else if filename == "_GAPParseConfig.json" {
-                files = append(files[:i], files[i+1:]...)
-                i--
-                continue
-            }
-        }
-        //Unarchive any files
-        if len(archives) > 0 {
-            goauditparser.GoAuditExtract_Start(options, archives, goauditparser.Parse_Config_JSON{}, -1)
-        } else {
-            fmt.Println(options.Warnbox + "ERROR - Could not identify any archive files in input directory '" + options.InputPath + "'.")
-        }
-        return
-    }
+			if strings.ToLower(filepath.Ext(filename)) == ".zip" || strings.ToLower(filepath.Ext(filename)) == ".mans" {
+				archives = append(archives, files[i])
+				files = append(files[:i], files[i+1:]...)
+				i--
+				continue
+			} else if filename == "_GAPParseConfig.json" {
+				files = append(files[:i], files[i+1:]...)
+				i--
+				continue
+			}
+		}
+		//Unarchive any files
+		if len(archives) > 0 {
+			goauditparser.GoAuditExtract_Start(options, archives, goauditparser.Parse_Config_JSON{}, -1)
+		} else {
+			fmt.Println(options.Warnbox + "ERROR - Could not identify any archive files in input directory '" + options.InputPath + "'.")
+		}
+		return
+	}
 
-    //Get number of input directories
-    inputArray := strings.Split(options.InputPath, ",")
-    if len(inputArray) > 1 {
-        fmt.Println(options.Box+"Provided", len(inputArray), "input directories:")
-        for i, inputPath := range inputArray {
-            fmt.Println(options.Box + strconv.Itoa(i+1) + ". " + inputPath)
-        }
-    }
+	//Get number of input directories
+	inputArray := strings.Split(options.InputPath, ",")
+	if len(inputArray) > 1 {
+		fmt.Println(options.Box+"Provided", len(inputArray), "input directories:")
+		for i, inputPath := range inputArray {
+			fmt.Println(options.Box + strconv.Itoa(i+1) + ". " + inputPath)
+		}
+	}
 
-    if (options.Recursive) {
-        inputMap := map[string]bool{}
-        fmt.Println(options.Box+"Recursively identifying directories:")
-        for _, inputPath := range inputArray {
-            inputMap[inputPath] = true
-            err := filepath.Walk(inputPath, func(path string, info os.FileInfo, err error) error {
-                if err != nil {
-                    return err
-                }
-                if (info.IsDir() && info.Name() != "xmlsplit")  {inputMap[path] = true}
-                return nil
-            })
-            if err != nil {
-                fmt.Println(options.Warnbox + "ERROR - Could not recursively explore the directory '" + inputPath + "'.")
-                break;
-            }
-        }
+	if options.Recursive {
+		inputMap := map[string]bool{}
+		fmt.Println(options.Box + "Recursively identifying directories:")
+		for _, inputPath := range inputArray {
+			inputMap[inputPath] = true
+			err := filepath.Walk(inputPath, func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				if info.IsDir() && info.Name() != "xmlsplit" {
+					inputMap[path] = true
+				}
+				return nil
+			})
+			if err != nil {
+				fmt.Println(options.Warnbox + "ERROR - Could not recursively explore the directory '" + inputPath + "'.")
+				break
+			}
+		}
 
-        inputArray = []string{}
-        for k, _ := range inputMap {
-            inputArray = append(inputArray,k);
-        }
-        sort.Strings(inputArray)
-        for i, inputPath := range inputArray {
-            fmt.Println(options.Box + strconv.Itoa(i+1) + ". " + inputPath)
-        }
-        
-    }
-    
-    // Make output directory if it does not exist
-    if _, err := os.Stat(options.OutputPath); os.IsNotExist(err) {
-        if err = os.MkdirAll(options.OutputPath, os.ModePerm); err != nil {
-            fmt.Println(options.Warnbox + "ERROR - Could not create output directory '" + options.OutputPath + "'.")
-            log.Fatal(err)
-        }
-    } else {
-        // Remove all
-        if options.WipeOutput {
-            outputfiles, _ := ioutil.ReadDir(options.OutputPath)
-            if len(outputfiles) > 0 {
-                fmt.Println(options.Box + "Deleting all pre-existing CSV files in the output directory '" + options.OutputPath + "' as specified with the '-wo' flag.")
-                for _, file := range outputfiles {
-                    var filename = file.Name()
-                    if strings.HasSuffix(filename, ".csv") {
-                        if options.Verbose > 0 {
-                            fmt.Println(options.Box + "Removing pre-existing CSV file '" + filename + "'...")
-                        }
-                        os.Remove(filepath.Join(options.OutputPath, filename))
-                    }
-                }
-            }
-        }
-    }
+		inputArray = []string{}
+		for k, _ := range inputMap {
+			inputArray = append(inputArray, k)
+		}
+		sort.Strings(inputArray)
+		for i, inputPath := range inputArray {
+			fmt.Println(options.Box + strconv.Itoa(i+1) + ". " + inputPath)
+		}
 
-    //Iterate through each input directory
-    for _, inputPath := range inputArray {
+	}
 
-        if len(inputArray) != 1 {
-            fmt.Println(options.Box + "Starting process for input '" + inputPath + "' into output '" + options.OutputPath + "'...")
-        }
+	// Make output directory if it does not exist
+	if _, err := os.Stat(options.OutputPath); os.IsNotExist(err) {
+		if err = os.MkdirAll(options.OutputPath, os.ModePerm); err != nil {
+			fmt.Println(options.Warnbox + "ERROR - Could not create output directory '" + options.OutputPath + "'.")
+			log.Fatal(err)
+		}
+	} else {
+		// Remove all
+		if options.WipeOutput {
+			outputfiles, _ := ioutil.ReadDir(options.OutputPath)
+			if len(outputfiles) > 0 {
+				fmt.Println(options.Box + "Deleting all pre-existing CSV files in the output directory '" + options.OutputPath + "' as specified with the '-wo' flag.")
+				for _, file := range outputfiles {
+					var filename = file.Name()
+					if strings.HasSuffix(filename, ".csv") {
+						if options.Verbose > 0 {
+							fmt.Println(options.Box + "Removing pre-existing CSV file '" + filename + "'...")
+						}
+						os.Remove(filepath.Join(options.OutputPath, filename))
+					}
+				}
+			}
+		}
+	}
 
-        // SET ORIGINALS
-        originalInputPath := options.InputPath
-        originalWipeOutput := options.WipeOutput
-        options.InputPath = inputPath
+	//Iterate through each input directory
+	for _, inputPath := range inputArray {
 
-        // RUN PARSER
-        goauditparser.GoAuditParser_Start(options)
+		if len(inputArray) != 1 {
+			fmt.Println(options.Box + "Starting process for input '" + inputPath + "' into output '" + options.OutputPath + "'...")
+		}
 
-        // DISABLE WIPE DIRECTORY
-        options.WipeOutput = false
+		// SET ORIGINALS
+		originalInputPath := options.InputPath
+		originalWipeOutput := options.WipeOutput
+		options.InputPath = inputPath
 
-        // RESET ORIGINALS
-        options.InputPath = originalInputPath
-        options.WipeOutput = originalWipeOutput
-    }
+		// RUN PARSER
+		goauditparser.GoAuditParser_Start(options)
 
-    // RUN TIMELINER
-    if options.Timeline {
-        goauditparser.GoAuditTimeliner_Start(options)
-    }
+		// DISABLE WIPE DIRECTORY
+		options.WipeOutput = false
+
+		// RESET ORIGINALS
+		options.InputPath = originalInputPath
+		options.WipeOutput = originalWipeOutput
+	}
+
+	// RUN TIMELINER
+	if options.Timeline {
+		goauditparser.GoAuditTimeliner_Start(options)
+	}
 }
 
 func MD5Hash(filepath string) string {
-    f, err := os.Open(filepath)
-    if err != nil {
-        log.Fatal(err)
-    }
-    h := md5.New()
-    if _, err := io.Copy(h, f); err != nil {
-        log.Fatal(err)
-    }
-    hash := string(h.Sum(nil))
-    f.Close()
-    return hash
+	f, err := os.Open(filepath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	h := md5.New()
+	if _, err := io.Copy(h, f); err != nil {
+		log.Fatal(err)
+	}
+	hash := string(h.Sum(nil))
+	f.Close()
+	return hash
 }
 
 func RemoveFilesByExt(dirpath string, ext string) {
-    files, _ := ioutil.ReadDir(dirpath)
-    for _, f := range files {
-        if strings.HasSuffix(f.Name(), ext) {
-            os.Remove(filepath.Join(dirpath, f.Name()))
-        }
-    }
+	files, _ := ioutil.ReadDir(dirpath)
+	for _, f := range files {
+		if strings.HasSuffix(f.Name(), ext) {
+			os.Remove(filepath.Join(dirpath, f.Name()))
+		}
+	}
 }
